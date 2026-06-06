@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'git@github.com:edmundkb/crypto-infra-k8s.git'
+    repoURL: 'https://github.com/edmundkb/crypto-infra-k8s.git'
     targetRevision: HEAD
     path: manifests
   destination:
@@ -14,5 +14,5 @@ spec:
     namespace: default
   syncPolicy:
     automated:
-      prune: true     # deletes objects in K8s if deleted from Git
-      selfHeal: true  # overrides manual cluster alterations to match Git truth
+      prune: true
+      selfHeal: true
