@@ -19,7 +19,7 @@ cd ..
 
 echo "Building updated application images..."
 echo "-> Building market-feeder..."
-docker build -t market-feeder:latest ../market-feeder
+docker build -t market-feeder:latest ../crypto-market-feeder
 
 echo "-> Building crypto-alert-engine..."
 docker build -t crypto-alert-engine:latest ../crypto-alert-engine
