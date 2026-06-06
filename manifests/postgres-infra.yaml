@@ -1,66 +1,127 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-pvc
-  namespace: default
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi #local deployment limit
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgres
-  namespace: default
+  name: market-feeder
   labels:
-    app: postgres
+    app: market-feeder
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: postgres
+      app: market-feeder
   template:
     metadata:
       labels:
-        app: postgres
+        app: market-feeder
     spec:
+      initContainers:
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z -w 2 rabbitmq-service 5672; do
+                echo "Waiting for rabbitmq-service..."
+                sleep 2
+              done
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z -w 2 postgres-service 5432; do
+                echo "Waiting for postgres-service..."
+                sleep 2
+              done
       containers:
-        - name: postgres
-          image: postgres:15-alpine
-          ports:
-            - containerPort: 5432
+        - name: market-feeder
+          image: market-feeder:latest
+          imagePullPolicy: Never
           env:
-            - name: POSTGRES_DB
-              value: cryptodb
-            - name: POSTGRES_USER
-              value: crypto_user
-            - name: POSTGRES_PASSWORD
-              value: crypto_pass
+            - name: SPRING_RABBITMQ_HOST
+              value: "rabbitmq-service"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service:5432/cryptodb"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "crypto_user"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "crypto_pass"
           resources:
             limits:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "500m"
-          volumeMounts:
-            - name: postgres-storage
-              mountPath: /var/lib/postgresql/data
-      volumes:
-        - name: postgres-storage
-          profile:
-          persistentVolumeClaim:
-            claimName: postgres-pvc
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
 ---
-apiVersion: v1
-kind: Service
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: postgres-service
-  namespace: default
+  name: crypto-alert-engine
+  labels:
+    app: crypto-alert-engine
 spec:
+  replicas: 2
   selector:
-    app: postgres
-  ports:
-    - protocol: TCP
-      port: 5432
-      targetPort: 5432
+    matchLabels:
+      app: crypto-alert-engine
+  template:
+    metadata:
+      labels:
+        app: crypto-alert-engine
+    spec:
+      initContainers:
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z -w 2 rabbitmq-service 5672; do
+                echo "Waiting for rabbitmq-service..."
+                sleep 2
+              done
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z -w 2 postgres-service 5432; do
+                echo "Waiting for postgres-service..."
+                sleep 2
+              done
+      containers:
+        - name: crypto-alert-engine
+          image: crypto-alert-engine:latest
+          imagePullPolicy: Never
+          env:
+            - name: SPRING_RABBITMQ_HOST
+              value: "rabbitmq-service"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service:5432/cryptodb"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "crypto_user"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "crypto_pass"
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 15
