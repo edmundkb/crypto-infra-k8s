@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crypto-pipeline-infra
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'git@github.com:edmundkb/crypto-infra-k8s.git'
+    targetRevision: HEAD
+    path: manifests
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true     # deletes objects in K8s if deleted from Git
+      selfHeal: true  # overrides manual cluster alterations to match Git truth
