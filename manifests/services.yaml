@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: market-feeder
+  labels:
+    app: market-feeder
+spec:
+  replicas: 1 # prevent duplicate streaming connections
+  selector:
+    matchLabels:
+      app: market-feeder
+  template:
+    metadata:
+      labels:
+        app: market-feeder
+    spec:
+      containers:
+        - name: market-feeder
+          image: market-feeder:latest
+          imagePullPolicy: Never #never for local use
+          env:
+            - name: SPRING_RABBITMQ_HOST
+              value: "rabbitmq-service"
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crypto-alert-engine
+  labels:
+    app: crypto-alert-engine
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: crypto-alert-engine
+  template:
+    metadata:
+      labels:
+        app: crypto-alert-engine
+    spec:
+      containers:
+        - name: crypto-alert-engine
+          image: crypto-alert-engine:latest
+          imagePullPolicy: Never
+          env:
+            - name: SPRING_RABBITMQ_HOST
+              value: "rabbitmq-service"
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 15
