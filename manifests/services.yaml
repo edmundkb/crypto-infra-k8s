@@ -14,6 +14,19 @@ spec:
       labels:
         app: market-feeder
     spec:
+      initContainers:
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for rabbitmq-service to accept connections..."
+              until nc -z -w 2 rabbitmq-service 5672; do
+                echo "rabbitmq-service is unavailable - retrying in 2 seconds..."
+                sleep 2
+              done
+              echo "rabbitmq-service is online! Proceeding with startup."
       containers:
         - name: market-feeder
           image: market-feeder:latest
@@ -45,6 +58,19 @@ spec:
       labels:
         app: crypto-alert-engine
     spec:
+      initContainers:
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for rabbitmq-service to accept connections..."
+              until nc -z -w 2 rabbitmq-service 5672; do
+                echo "rabbitmq-service is unavailable - retrying in 2 seconds..."
+                sleep 2
+              done
+              echo "rabbitmq-service is online! Proceeding with startup."
       containers:
         - name: crypto-alert-engine
           image: crypto-alert-engine:latest
